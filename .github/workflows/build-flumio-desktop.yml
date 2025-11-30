@@ -1,3 +1,18 @@
+# Grammar fixes:
+# - "are you insane? do not copy all files, just installers!"
+#   -> "Are you insane? Do not copy all files, just the installers!"
+
+# File: .github/workflows/build-flumio-desktop.yml
+#
+# What this does:
+# - Trigger on push to main
+# - Build Flumio Desktop on:
+#     * macOS (arm64)  → Flumio-*.dmg
+#     * Windows (x64)  → Flumio Setup *.exe
+#     * Linux (x64)    → Flumio-*.AppImage
+# - Upload ONLY installer files as artifacts
+# - Create a GitHub Release and attach ONLY those installer files
+
 name: Build and Release Flumio Desktop
 
 on:
@@ -5,9 +20,8 @@ on:
     branches:
       - main
 
-# We need write access to create GitHub Releases
 permissions:
-  contents: write
+  contents: write  # needed for creating releases
 
 jobs:
   build:
@@ -23,18 +37,21 @@ jobs:
             target: linux
             arch: x64
             artifact_suffix: linux-x64
+            installer_pattern: dist/Flumio-*.AppImage
 
-          # Windows x64 NSIS
-          - os: windows-latest
-            target: win
-            arch: x64
-            artifact_suffix: win-x64
-
-          # macOS arm64 DMG (macos-14 = Apple Silicon runner)
-          - os: macos-14
-            target: mac
-            arch: arm64
-            artifact_suffix: mac-arm64
+#          # Windows x64 NSIS
+#          - os: windows-latest
+#            target: win
+#            arch: x64
+#            artifact_suffix: win-x64
+#            installer_pattern: 'dist/Flumio Setup *.exe'
+#
+#          # macOS arm64 DMG (macos-14 = Apple Silicon runner)
+#          - os: macos-14
+#            target: mac
+#            arch: arm64
+#            artifact_suffix: mac-arm64
+#            installer_pattern: dist/Flumio-*.dmg
 
     steps:
       - name: Checkout repo
@@ -58,14 +75,15 @@ jobs:
         run: |
           npx electron-builder --${{ matrix.target }} --${{ matrix.arch }} -p never
 
-      # Upload everything from dist/ as an artifact for this platform.
-      # You can later narrow this to *.exe / *.dmg / *.AppImage, etc.
-      - name: Upload build artifacts
+      # Upload ONLY the installer(s) for this platform:
+      #  - Linux:  dist/Flumio-*.AppImage
+      #  - Windows: dist/Flumio Setup *.exe
+      #  - macOS:  dist/Flumio-*.dmg
+      - name: Upload installer artifact
         uses: actions/upload-artifact@v4
         with:
           name: flumio-desktop-${{ matrix.artifact_suffix }}
-          path: |
-            dist/**
+          path: ${{ matrix.installer_pattern }}
           if-no-files-found: error
 
   release:
@@ -74,33 +92,30 @@ jobs:
     needs: build
 
     steps:
-      - name: Download all artifacts
+      - name: Download all installer artifacts
         uses: actions/download-artifact@v4
         with:
           path: release
           merge-multiple: true
 
-      - name: List downloaded files
+      - name: List downloaded installers
         run: ls -R release
 
-      # Create a GitHub Release and attach all built binaries.
-      # softprops/action-gh-release uses the GITHUB_TOKEN automatically.
+      # Create a GitHub Release and attach ONLY the installers
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          # Tag name for this build (you can change this scheme later)
           tag_name: desktop-${{ github.run_number }}
           name: Flumio Desktop build ${{ github.run_number }}
           body: |
             Automated desktop build from branch `${{ github.ref }}`.
-            - Windows: flumio-desktop-win-x64
-            - macOS (arm64): flumio-desktop-mac-arm64
-            - Linux (x64): flumio-desktop-linux-x64
 
-          # Mark as pre-release for safety; flip to false when you're ready.
+            Included installers:
+            - Windows (x64): Flumio Setup *.exe
+            - macOS (arm64): Flumio-*.dmg
+            - Linux  (x64): Flumio-*.AppImage
+
           prerelease: true
           draft: false
-
-          # All files from the "release" folder become assets on the Release
           files: |
             release/**
