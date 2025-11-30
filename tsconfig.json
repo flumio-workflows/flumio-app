@@ -1,0 +1,19 @@
+// Make sure your tsconfig.json matches this idea:
+
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "CommonJS",
+    "moduleResolution": "node",
+    "rootDir": "src",      // <– src/main.ts lives here
+    "outDir": "dist",      // <– dist/main.js is generated here
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "types": ["node"]
+  },
+  "include": ["src/**/*"]
+}
+
+// Then your Electron entry is src/main.ts → dist/main.js → "main" field.
+// With that, your package.json is logically correct as a bootstrapper wrapper.
