@@ -39,19 +39,19 @@ jobs:
             artifact_suffix: linux-x64
             installer_pattern: dist/Flumio-*.AppImage
 
-#          # Windows x64 NSIS
-#          - os: windows-latest
-#            target: win
-#            arch: x64
-#            artifact_suffix: win-x64
-#            installer_pattern: 'dist/Flumio Setup *.exe'
-#
-#          # macOS arm64 DMG (macos-14 = Apple Silicon runner)
-#          - os: macos-14
-#            target: mac
-#            arch: arm64
-#            artifact_suffix: mac-arm64
-#            installer_pattern: dist/Flumio-*.dmg
+          # Windows x64 NSIS
+          - os: windows-latest
+            target: win
+            arch: x64
+            artifact_suffix: win-x64
+            installer_pattern: 'dist/Flumio Setup *.exe'
+
+          # macOS arm64 DMG (macos-14 = Apple Silicon runner)
+          - os: macos-14
+            target: mac
+            arch: arm64
+            artifact_suffix: mac-arm64
+            installer_pattern: dist/Flumio-*.dmg
 
     steps:
       - name: Checkout repo
