@@ -18,7 +18,7 @@ name: Build and Release Flumio Desktop
 on:
   push:
     branches:
-      - main
+      - release
 
 permissions:
   contents: write  # needed for creating releases
