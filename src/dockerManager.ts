@@ -17,18 +17,17 @@ export type DockerBootstrapStatus =
 type RawDockerStatus = "ok" | "missing" | "daemon_off";
 
 async function getRawDockerStatus(): Promise<RawDockerStatus> {
-    try {
-        // 1. Is docker CLI on PATH?
-        await asyncExec("docker --version");
-    } catch (err) {
-        console.error("[dockerManager] docker --version failed:", err);
-        return "missing";
-    }
 
     try {
-        // 2. Is the daemon actually running?
-        // If Docker Desktop is closed, this typically fails with
-        // "Cannot connect to the Docker daemon…" error.
+        const {stdout} = await asyncExec(
+            "/usr/bin/which docker || /opt/homebrew/bin/docker || /usr/local/bin/docker"
+        );
+        const bin = stdout.trim();
+    } catch(err) {
+        console.error("[dockerManager] docker --version failed:", err);
+        return 'missing';
+    }
+    try {
         await asyncExec("docker info");
         return "ok";
     } catch (err) {

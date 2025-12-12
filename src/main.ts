@@ -8,8 +8,24 @@ import {app, BrowserWindow, dialog} from "electron";
 import {startStack, waitForHttpReady} from "./dockerManager";
 import {showDockerMissingDialog} from "./dockerInstallHelper";
 import {join} from "node:path";
+import {mainWindowHtml} from "./mainWindow";
 
 const APP_URL = "http://localhost:3000"; // nginx test, or your Flumio URL
+app.commandLine.appendSwitch("disable-renderer-backgrounding");
+app.commandLine.appendSwitch("disable-background-timer-throttling");
+app.commandLine.appendSwitch("disable-backgrounding-occluded-windows");
+app.commandLine.appendSwitch("enable-gpu-rasterization");
+app.commandLine.appendSwitch("enable-zero-copy");
+
+if (process.platform === "darwin") {
+    process.env.PATH = [
+        "/opt/homebrew/bin",
+        "/usr/local/bin",
+        "/usr/bin",
+        "/bin",
+        process.env.PATH,
+    ].filter(Boolean).join(":");
+}
 
 let mainWindow: BrowserWindow | null = null;
 app.setName("Flumio");
@@ -23,53 +39,18 @@ async function bootstrapApp(): Promise<void> {
         title: "Flumio",
         backgroundColor: "#020617",
         icon: iconPath,
+        show: false,
         webPreferences: {
             contextIsolation: true,
-            nodeIntegration: false
+            nodeIntegration: false,
+            sandbox: true,
+            devTools: false,
+            spellcheck: false
         }
     });
-
-    await mainWindow.loadURL(
-        "data:text/html;charset=utf-8," +
-        encodeURIComponent(`
-        <!doctype html>
-        <html>
-          <head>
-            <meta charset="UTF-8" />
-            <title>Starting backend…</title>
-            <style>
-              body {
-                margin: 0;
-                height: 100vh;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                background: #020617;
-                color: #e5e7eb;
-                font-family: system-ui, sans-serif;
-              }
-              .box { text-align: center; }
-              h1 { margin-bottom: 0.5rem; font-size: 1.6rem; }
-              p  { margin: 0.2rem 0; opacity: 0.8; }
-              code {
-                padding: 0.1rem 0.3rem;
-                border-radius: 4px;
-                background: #ffffff;
-              }
-            </style>
-          </head>
-          <body>
-            <div class="box">
-              <h1>Starting Docker stack…</h1>
-              <p>Running <code>docker compose up -d</code> for a test web container.</p>
-            </div>
-          </body>
-        </html>
-      `)
-    );
-
+    mainWindow.setMenu(null);
+    await mainWindow.loadURL("data:text/html;charset=utf-8," + encodeURIComponent(mainWindowHtml));
     const status = await startStack();
-
     if (status === "docker_missing") {
         await showDockerMissingDialog();
         app.quit();
@@ -106,7 +87,6 @@ async function bootstrapApp(): Promise<void> {
     }
 
     const ready = await waitForHttpReady(APP_URL);
-
     if (!ready) {
         await dialog.showErrorBox(
             "Backend not responding",
@@ -117,7 +97,7 @@ async function bootstrapApp(): Promise<void> {
     }
 
     await mainWindow.loadURL(APP_URL);
-
+    mainWindow.show();
     mainWindow.on("closed", () => {
         mainWindow = null;
     });
