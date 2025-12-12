@@ -5,6 +5,7 @@ import {exec} from "node:child_process";
 import {promisify} from "node:util";
 import {join} from "node:path";
 import {app} from "electron";
+import os from "node:os";
 
 const asyncExec = promisify(exec);
 
@@ -17,13 +18,20 @@ export type DockerBootstrapStatus =
 type RawDockerStatus = "ok" | "missing" | "daemon_off";
 
 async function getRawDockerStatus(): Promise<RawDockerStatus> {
+    const platform = os.platform();
 
     try {
+
+        if (platform === "win32") {
+            const {stdout} = await asyncExec("where docker");
+            return stdout.split(/\r?\n/)[0].trim()
+        }
+
         const {stdout} = await asyncExec(
             "/usr/bin/which docker || /opt/homebrew/bin/docker || /usr/local/bin/docker"
         );
         const bin = stdout.trim();
-    } catch(err) {
+    } catch (err) {
         console.error("[dockerManager] docker --version failed:", err);
         return 'missing';
     }
