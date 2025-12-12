@@ -1,28 +1,19 @@
 # Grammar fixes:
-# - "so now make github action that will triggered in release branch
-#    and will run mac arm64 and win x 64 and linux x64
-#    and publish it as github 'artifacts' or something so users can donwload it"
-#   ->
-#   "So now make a GitHub Action that will be triggered on the release branch,
-#    run mac arm64, Windows x64 and Linux x64 builds,
-#    and publish them as GitHub artifacts so users can download them."
+# - "are you insane? do not copy all files, just installers!"
+#   -> "Are you insane? Do not copy all files, just the installers!"
 
 # File: .github/workflows/build-flumio-desktop.yml
 #
 # What this does:
-# - Trigger on push to branch "release"
+# - Trigger on push to main
 # - Build Flumio Desktop on:
-#     * macOS (arm64)
-#     * Windows (x64)
-#     * Linux (x64)
-# - Run your existing build: tsc + electron-builder
-# - Upload the generated installers in dist/ as GitHub Actions artifacts
-#
-# NOTE:
-# - Users can download artifacts from the Actions page.
-#   If you want nice public download links, you can later add a "upload to GitHub Releases" step.
+#     * macOS (arm64)  → Flumio-*.dmg
+#     * Windows (x64)  → Flumio Setup *.exe
+#     * Linux (x64)    → Flumio-*.AppImage
+# - Upload ONLY installer files as artifacts
+# - Create a GitHub Release and attach ONLY those installer files
 
-name: Build Flumio Desktop
+name: Build and Release Flumio Desktop
 
 on:
   push:
@@ -30,7 +21,7 @@ on:
       - release
 
 permissions:
-  contents: read   # we only need read for checkout; change later if you add Releases upload
+  contents: write  # needed for creating releases
 
 jobs:
   build:
@@ -46,19 +37,21 @@ jobs:
             target: linux
             arch: x64
             artifact_suffix: linux-x64
+            installer_pattern: dist/Flumio-*.AppImage
 
           # Windows x64 NSIS
           - os: windows-latest
             target: win
             arch: x64
             artifact_suffix: win-x64
+            installer_pattern: 'dist/Flumio Setup *.exe'
 
-          # macOS arm64 DMG
-          # (macos-14 is Apple Silicon runner; good for arm64)
+          # macOS arm64 DMG (macos-14 = Apple Silicon runner)
           - os: macos-14
             target: mac
             arch: arm64
             artifact_suffix: mac-arm64
+            installer_pattern: dist/Flumio-*.dmg
 
     steps:
       - name: Checkout repo
@@ -78,17 +71,51 @@ jobs:
 
       # Build per-platform using electron-builder.
       # Assumes your package.json "build" section is already configured (appId, icons, targets).
-      # We call electron-builder directly so we can pass --mac/--win/--linux and arch flags.
       - name: Build ${{ matrix.target }} ${{ matrix.arch }} installer
         run: |
           npx electron-builder --${{ matrix.target }} --${{ matrix.arch }} -p never
 
-      # Upload everything from dist/ as an artifact for this platform.
-      # You can refine the pattern later (e.g. only *.exe, *.dmg, *.AppImage).
-      - name: Upload build artifacts
+      # Upload ONLY the installer(s) for this platform:
+      #  - Linux:  dist/Flumio-*.AppImage
+      #  - Windows: dist/Flumio Setup *.exe
+      #  - macOS:  dist/Flumio-*.dmg
+      - name: Upload installer artifact
         uses: actions/upload-artifact@v4
         with:
           name: flumio-desktop-${{ matrix.artifact_suffix }}
-          path: |
-            dist/**
+          path: ${{ matrix.installer_pattern }}
           if-no-files-found: error
+
+  release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - name: Download all installer artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release
+          merge-multiple: true
+
+      - name: List downloaded installers
+        run: ls -R release
+
+      # Create a GitHub Release and attach ONLY the installers
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: desktop-${{ github.run_number }}
+          name: Flumio Desktop build ${{ github.run_number }}
+          body: |
+            Automated desktop build from branch `${{ github.ref }}`.
+
+            Included installers:
+            - Windows (x64): Flumio Setup *.exe
+            - macOS (arm64): Flumio-*.dmg
+            - Linux  (x64): Flumio-*.AppImage
+
+          prerelease: true
+          draft: false
+          files: |
+            release/**

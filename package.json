@@ -1,0 +1,55 @@
+{
+  "name": "flumio-app",
+  "version": "1.0.0",
+  "main": "dist/main.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "npm run build && electron .",
+    "dev": "tsc -w & electron .",
+    "dist": "npm run build && electron-builder",
+    "dist:mac:x64": "npm run build && electron-builder --mac --x64",
+    "dist:mac:arm64": "npm run build && electron-builder --mac --arm64",
+    "dist:mac:universal": "npm run build && electron-builder --mac --universal",
+    "dist:win:x64": "npm run build && electron-builder --win --x64",
+    "dist:linux:x64": "npm run build && electron-builder --linux --x64"
+  },
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "devDependencies": {
+    "@types/node": "^24.10.1",
+    "electron": "^39.2.4",
+    "electron-builder": "^26.0.12",
+    "typescript": "^5.9.3"
+  },
+  "build": {
+    "appId": "net.flumio.desktop",
+    "productName": "Flumio",
+    "icon": "assets/logo.png",
+    "files": [
+      "dist/**/*",
+      "docker/docker-compose.yml"
+    ],
+    "extraResources": [
+      {
+        "from": "docker/",
+        "to": "docker",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "mac": {
+      "target": "dmg",
+      "icon": "assets/logo.png"
+    },
+    "win": {
+      "target": "nsis",
+      "icon": "assets/logo.png"
+    },
+    "linux": {
+      "target": "AppImage",
+      "icon": "assets/logo.png"
+    }
+  }
+}
